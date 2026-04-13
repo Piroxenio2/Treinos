@@ -115,7 +115,9 @@ with aba_registro:
 with aba_historico:
     df = carregar_dados()
     if not df.empty and "Data_Hora" in df.columns:
-        df['Data_Hora'] = pd.to_datetime(df['Data_Hora'])
+        df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='mixed', errors='coerce')
+        df = df.dropna(subset=['Data_Hora'])
+        
         df['Data_Simples'] = df['Data_Hora'].dt.date
         dias_unicos = sorted(df['Data_Simples'].unique(), reverse=True)[:10]
         
@@ -137,6 +139,10 @@ with aba_historico:
 with aba_graficos:
     df = carregar_dados()
     if not df.empty and len(df) > 1:
+        df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='mixed', errors='coerce')
+        df = df.dropna(subset=['Data_Hora'])
+        
+        lista_ex = sorted(df['Exercicio'].unique())
         lista_ex = sorted(df['Exercicio'].unique())
         opcao = st.selectbox("Qual exercício quer analisar?", lista_ex)
         df_filt = df[df['Exercicio'] == opcao].sort_values(by="Data_Hora")
