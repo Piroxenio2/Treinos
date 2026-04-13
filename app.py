@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import os
 from datetime import datetime
@@ -6,6 +7,10 @@ import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Treino Tracker Pro", page_icon="💪", layout="wide")
+
+# --- CONFIGURAÇÃO DA CONEXÃO ---
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 
 ARQUIVO_DADOS = 'historico_treinos.csv'
 
@@ -33,14 +38,9 @@ LISTA_EXERCICIOS = [
     "Abdominal Máquina", "Abdominal Infra (Paralela)", "Abdominal Supra (Solo)"
 ]
 
-# --- FUNÇÕES AUXILIARES ---
 def carregar_dados():
-    if not os.path.exists(ARQUIVO_DADOS):
-        return pd.DataFrame(columns=["Data_Hora", "Exercicio", "Peso_kg", "Repeticoes", "Series", "Volume_Total"])
-    try:
-        return pd.read_csv(ARQUIVO_DADOS)
-    except:
-        return pd.DataFrame(columns=["Data_Hora", "Exercicio", "Peso_kg", "Repeticoes", "Series", "Volume_Total"])
+    # Lê os dados da aba "Página1" (ou o nome que você deu)
+    return conn.read(worksheet="Página1", ttl="0s")
 
 def traduzir_dia(data):
     dias = {
@@ -228,3 +228,26 @@ with aba_fichas:
         **4. Antebraço**
         - [ ] Rosca Inversa - 3x 8-12
         """)
+
+# --- NA HORA DE SALVAR ---
+if enviado:
+    nome_final = nome_outro if escolha == "Outro..." else escolha
+    if nome_final:
+        data_combinada = datetime.combine(data_input, hora_input)
+        novo_dado = pd.DataFrame([{
+            "Data_Hora": data_combinada.strftime('%Y-%m-%d %H:%M:%S'),
+            "Exercicio": nome_final,
+            "Peso_kg": peso,
+            "Repeticoes": reps,
+            "Series": series,
+            "Volume_Total": peso * reps * series
+        }])
+        
+        # Carrega o que já existe e adiciona o novo
+        df_existente = carregar_dados()
+        df_atualizado = pd.concat([df_existente, novo_dado], ignore_index=True)
+        
+        # Salva de volta no Google Sheets
+        conn.update(worksheet="Página1", data=df_atualizado)
+        st.success("✅ Sincronizado com Google Sheets!")
+        st.rerun()
