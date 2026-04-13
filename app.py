@@ -233,21 +233,28 @@ with aba_fichas:
 if enviado:
     nome_final = nome_outro if escolha == "Outro..." else escolha
     if nome_final:
+        # 1. Prepara o novo dado
         data_combinada = datetime.combine(data_input, hora_input)
-        novo_dado = pd.DataFrame([{
+        novo_registro = {
             "Data_Hora": data_combinada.strftime('%Y-%m-%d %H:%M:%S'),
             "Exercicio": nome_final,
-            "Peso_kg": peso,
-            "Repeticoes": reps,
-            "Series": series,
-            "Volume_Total": peso * reps * series
-        }])
+            "Peso_kg": float(peso),
+            "Repeticoes": int(reps),
+            "Series": int(series),
+            "Volume_Total": float(peso * reps * series)
+        }
         
-        # Carrega o que já existe e adiciona o novo
-        df_existente = carregar_dados()
-        df_atualizado = pd.concat([df_existente, novo_dado], ignore_index=True)
+        # 2. Busca os dados atuais para não sobrescrever errado
+        df_atual = conn.read(worksheet="Página1", ttl="0s")
         
-        # Salva de volta no Google Sheets
-        conn.update(worksheet="Página1", data=df_atualizado)
-        st.success("✅ Sincronizado com Google Sheets!")
+        # 3. Adiciona o novo registro
+        df_final = pd.concat([df_atual, pd.DataFrame([novo_registro])], ignore_index=True)
+        
+        # 4. Atualiza a planilha
+        conn.update(worksheet="Página1", data=df_final)
+        st.write("Conectado à planilha:", conn.read(worksheet="Página1").shape[0], "linhas encontradas.")
+        
+        st.success("💪 Treino salvo com sucesso no Google Sheets!")
+        st.balloons() # Um efeito visual para confirmar
+        time.sleep(1)
         st.rerun()
