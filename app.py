@@ -1,58 +1,53 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import os
 from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Treino Tracker Pro", page_icon="💪", layout="wide")
 
-# --- CONFIGURAÇÃO DA CONEXÃO ---
+# --- CONEXÃO COM GOOGLE SHEETS ---
+# Certifique-se de que no Streamlit Cloud você configurou os "Secrets"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# NOME DA ABA (Mude aqui se na sua planilha estiver diferente de 'Página1')
+NOME_ABA = "Página1"
 
-ARQUIVO_DADOS = 'historico_treinos.csv'
+def carregar_dados():
+    try:
+        # Lê os dados da planilha. ttl="0s" força a buscar dados novos sempre.
+        df = conn.read(worksheet=NOME_ABA, ttl="0s")
+        if df.empty or "Data_Hora" not in df.columns:
+            return pd.DataFrame(columns=["Data_Hora", "Exercicio", "Peso_kg", "Repeticoes", "Series", "Volume_Total"])
+        return df
+    except Exception as e:
+        # Se der erro (ex: aba não existe), retorna estrutura vazia para não quebrar o app
+        return pd.DataFrame(columns=["Data_Hora", "Exercicio", "Peso_kg", "Repeticoes", "Series", "Volume_Total"])
 
 # Lista Completa de Exercícios
 LISTA_EXERCICIOS = [
-    "Outro...", 
-    # PEITO
-    "Supino Reto (Barra)", "Supino Reto (Halter)", "Supino Inclinado (Halter)", 
-    "Supino Inclinado (Máquina)", "Crossover (Polia)", "Peck Deck / Voador",
-    "Flexão de Braços", "Crucifixo (Máquina)", "Supino Vertical", "Crucifixo", 
-    # COSTAS
-    "Puxada Alta (Frente)", "Barra Fixa", "Remada Baixa (Barra)", "Remada Baixa (Triângulo)",
-    "Remada Curvada", "Remada Articulada (Máquina)", "Pulldown", "Remada Serrote", "Encolhimento", 
-    # OMBROS
-    "Desenvolvimento (Halter)", "Desenvolvimento (Máquina)", "Elevação Frontal", 
-    "Elevação Lateral", "Elevação Lateral (Polia)", "Crucifixo Inverso", "Remada Alta",
-    # PERNAS
-    "Agachamento Livre", "Leg Press 45", "Cadeira Extensora", 
-    "Mesa Flexora", "Stiff", "Afundo / Passada", "Panturrilha (Máquina/Leg)", "Bulgaro", "Elevação Pélvica", "Agachamento (Halteres)", 
-    # BRAÇOS
-    "Tríceps Corda", "Tríceps Testa", "Tríceps Testa Máquina", "Tríceps Coice", 
-    "Rosca Direta", "Rosca Inclinada", "Rosca Martelo", "Rosca Tríceps", 
-    "Flexão de Punho", "Rosca Inversa", 
-    # ABDÔMEN
-    "Abdominal Máquina", "Abdominal Infra (Paralela)", "Abdominal Supra (Solo)"
+    "Outro...", "Supino Reto (Barra)", "Supino Reto (Halter)", "Supino Inclinado (Halter)", 
+    "Supino Inclinado (Máquina)", "Crossover (Polia)", "Peck Deck / Voador", "Flexão de Braços", 
+    "Crucifixo (Máquina)", "Supino Vertical", "Crucifixo", "Puxada Alta (Frente)", "Barra Fixa", 
+    "Remada Baixa (Barra)", "Remada Baixa (Triângulo)", "Remada Curvada", "Remada Articulada (Máquina)", 
+    "Pulldown", "Remada Serrote", "Encolhimento", "Desenvolvimento (Halter)", "Desenvolvimento (Máquina)", 
+    "Elevação Frontal", "Elevação Lateral", "Elevação Lateral (Polia)", "Crucifixo Inverso", "Remada Alta",
+    "Agachamento Livre", "Leg Press 45", "Cadeira Extensora", "Mesa Flexora", "Stiff", "Afundo / Passada", 
+    "Panturrilha (Máquina/Leg)", "Bulgaro", "Elevação Pélvica", "Agachamento (Halteres)", "Tríceps Corda", 
+    "Tríceps Testa", "Tríceps Testa Máquina", "Tríceps Coice", "Rosca Direta", "Rosca Inclinada", 
+    "Rosca Martelo", "Rosca Tríceps", "Flexão de Punho", "Rosca Inversa", "Abdominal Máquina", 
+    "Abdominal Infra (Paralela)", "Abdominal Supra (Solo)"
 ]
 
-def carregar_dados():
-    # Lê os dados da aba "Página1" (ou o nome que você deu)
-    return conn.read(worksheet="Página1", ttl="0s")
-
 def traduzir_dia(data):
-    dias = {
-        'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta',
-        'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-    }
+    dias = {'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta',
+            'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'}
     return dias.get(data.strftime('%A'), data.strftime('%A'))
 
 # --- TÍTULO ---
 st.title("🏋️ Monitor de Treino - Academia")
 
-# AGORA SÃO 4 ABAS
 aba_registro, aba_historico, aba_graficos, aba_fichas = st.tabs([
     "📝 Novo Treino", "📅 Últimos 10 Treinos", "📈 Gráficos", "📋 Fichas de Treino"
 ])
@@ -75,186 +70,89 @@ with aba_registro:
         st.markdown("---")
         c3, c4, c5 = st.columns(3)
         with c3:
-            peso = st.number_input("Carga (kg)", min_value=0.0, step=1.0)
+            peso = st.number_input("Carga (kg)", min_value=0.0, step=0.5)
         with c4:
             reps = st.number_input("Repetições", min_value=0, step=1)
         with c5:
             series = st.number_input("Séries", min_value=1, step=1, value=3)
             
-        enviado = st.form_submit_button("💾 Salvar Treino", type="primary")
+        enviado = st.form_submit_button("💾 Salvar no Google Sheets", type="primary")
 
     if enviado:
         nome_final = nome_outro if escolha == "Outro..." else escolha
-        
         if not nome_final:
             st.error("Erro: Escolha um nome para o exercício.")
         else:
             try:
-                data_combinada = datetime.combine(data_input, hora_input)
-                novo = {
-                    "Data_Hora": data_combinada,
-                    "Exercicio": nome_final,
-                    "Peso_kg": peso,
-                    "Repeticoes": reps,
-                    "Series": series,
-                    "Volume_Total": peso * reps * series
-                }
+                # 1. Busca dados atuais
                 df_antigo = carregar_dados()
-                df_novo = pd.concat([df_antigo, pd.DataFrame([novo])], ignore_index=True)
-                df_novo.to_csv(ARQUIVO_DADOS, index=False)
                 
-                st.success(f"✅ {nome_final} registrado!")
+                # 2. Cria o novo registro
+                data_combinada = datetime.combine(data_input, hora_input)
+                novo_registro = {
+                    "Data_Hora": data_combinada.strftime('%Y-%m-%d %H:%M:%S'),
+                    "Exercicio": nome_final,
+                    "Peso_kg": float(peso),
+                    "Repeticoes": int(reps),
+                    "Series": int(series),
+                    "Volume_Total": float(peso * reps * series)
+                }
+                
+                # 3. Une e atualiza
+                df_novo = pd.concat([df_antigo, pd.DataFrame([novo_registro])], ignore_index=True)
+                conn.update(worksheet=NOME_ABA, data=df_novo)
+                
+                st.success(f"✅ {nome_final} sincronizado!")
+                st.balloons()
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao salvar: {e}")
 
 # ===================================================
-# ABA 2: HISTÓRICO INTELIGENTE (10 ÚLTIMOS TREINOS)
+# ABA 2: HISTÓRICO
 # ===================================================
 with aba_historico:
-    st.header("Seus Últimos 10 Dias de Treino")
-    
     df = carregar_dados()
-    
-    if not df.empty:
-        try:
-            df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='mixed')
-            df['Data_Simples'] = df['Data_Hora'].dt.date
-            dias_unicos = sorted(df['Data_Simples'].unique(), reverse=True)
-            top_dias = dias_unicos[:10] 
-            
-            if not top_dias:
-                st.info("Nenhum treino encontrado.")
-            else:
-                nomes_abas = [f"{traduzir_dia(d)} ({d.strftime('%d/%m')})" for d in top_dias]
-                abas = st.tabs(nomes_abas)
-                
-                for i, aba in enumerate(abas):
-                    with aba:
-                        dia_atual = top_dias[i]
-                        df_dia = df[df['Data_Simples'] == dia_atual].copy()
-                        df_dia = df_dia.sort_values(by="Data_Hora")
-                        df_exibir = df_dia[['Exercicio', 'Peso_kg', 'Repeticoes', 'Series']]
-                        
-                        st.dataframe(df_exibir, use_container_width=True, hide_index=True, height=300)
-                        vol_total = df_dia['Volume_Total'].sum()
-                        st.caption(f"Volume Total: {vol_total:,.0f} kg")
-
-        except Exception as e:
-            st.error(f"Erro ao processar datas: {e}. Tente limpar o arquivo CSV.")
+    if not df.empty and "Data_Hora" in df.columns:
+        df['Data_Hora'] = pd.to_datetime(df['Data_Hora'])
+        df['Data_Simples'] = df['Data_Hora'].dt.date
+        dias_unicos = sorted(df['Data_Simples'].unique(), reverse=True)[:10]
+        
+        if not dias_unicos:
+            st.info("Nenhum treino encontrado.")
+        else:
+            abas = st.tabs([f"{traduzir_dia(d)} ({d.strftime('%d/%m')})" for d in dias_unicos])
+            for i, aba in enumerate(abas):
+                with aba:
+                    df_dia = df[df['Data_Simples'] == dias_unicos[i]].sort_values(by="Data_Hora")
+                    st.dataframe(df_dia[['Exercicio', 'Peso_kg', 'Repeticoes', 'Series']], use_container_width=True, hide_index=True)
+                    st.caption(f"Volume Total: {df_dia['Volume_Total'].sum():,.0f} kg")
     else:
-        st.info("O histórico aparecerá aqui.")
+        st.info("O histórico aparecerá aqui após o primeiro registro.")
 
 # ===================================================
 # ABA 3: GRÁFICOS
 # ===================================================
 with aba_graficos:
-    st.header("Evolução de Carga")
     df = carregar_dados()
-    if not df.empty:
-        try:
-            df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='mixed')
-            lista_ex = sorted(df['Exercicio'].unique())
-            opcao = st.selectbox("Qual exercício quer analisar?", lista_ex)
-            
-            df_filt = df[df['Exercicio'] == opcao].sort_values(by="Data_Hora")
-            
-            if not df_filt.empty:
-                st.line_chart(df_filt, x="Data_Hora", y="Peso_kg")
-                max_carga = df_filt['Peso_kg'].max()
-                st.metric("Recorde Pessoal (PR)", f"{max_carga} kg")
-            else:
-                st.warning("Sem dados.")
-        except:
-            st.warning("Erro nos dados.")
+    if not df.empty and len(df) > 1:
+        lista_ex = sorted(df['Exercicio'].unique())
+        opcao = st.selectbox("Qual exercício quer analisar?", lista_ex)
+        df_filt = df[df['Exercicio'] == opcao].sort_values(by="Data_Hora")
+        st.line_chart(df_filt, x="Data_Hora", y="Peso_kg")
+        st.metric("Recorde Pessoal (PR)", f"{df_filt['Peso_kg'].max()} kg")
+    else:
+        st.warning("Dados insuficientes para gerar gráficos.")
 
 # ===================================================
-# ABA 4: FICHAS DE TREINO (NOVIDADE!)
+# ABA 4: FICHAS (CONTEÚDO ESTÁTICO)
 # ===================================================
 with aba_fichas:
-    st.header("📚 Suas Fichas de Treino")
-    st.markdown("Clique na seta para ver os exercícios do dia.")
-
-    with st.expander("TREINO A - Empurrar (Peito, Ombro, Tríceps, Antebraço)"):
-        st.markdown("""
-        **1. Peitoral**
-        - [ ] Supino Vertical - 4x 12
-        - [ ] Supino Reto (Barra) - 4x 8-10
-        - [ ] Flexão de Braço - 4x 10-12 / Crucifixo - 4x 10-12
-        
-        **2. Ombros**
-        - [ ] Remada Alta - 3x 8-12
-        - [ ] Desenvolvimento Militar - 3x 8-12
-        - [ ] Elevação Lateral - 3x 8-12
-        
-        **3. Tríceps**
-        - [ ] Rosca Tríceps - 3x 8-12
-        - [ ] Tríceps Testa Máquina - 3x 8-12
-        - [ ] Tríceps Coice - 3x 8-12
-        
-        **4. Antebraço**
-        - [ ] Rosca Máquina - 3x 8-12
-        """)
-
-    with st.expander("TREINO B - Pernas Completo"):
-        st.markdown("""
-        **Pernas**
-        - [ ] Agachamento Livre - 4x 6-8 (Carga Alta)
-        - [ ] Stiff - 4x 8-10
-        - [ ] Cadeira Extensora - 4x 12 
-        - [ ] Búlgaro - 3x 10-12
-        - [ ] Elevação Pélvica - 3x 10 
-        
-        **Panturrilha**
-        - [ ] Panturrilha - 4x 25-30
-        """)
-
-    with st.expander("TREINO C - Puxar (Costas, Trapézio, Bíceps, Antebraço)"):
-        st.markdown("""
-        **1. Costas**
-        - [ ] Puxada Alta (Frente) - 4x 8-12
-        - [ ] Remada Baixa (Barra) - 4x 8-12
-        - [ ] Remada Serrote - 4x 8-12
-        
-        **2. Trapézio**
-        - [ ] Encolhimento com Halteres - 3x 15
-        
-        **3. Bíceps**
-        - [ ] Rosca Direta (Barra) - 4x 8-12
-        - [ ] Rosca Inclinada - 3x 8-12
-        - [ ] Rosca Martelo - 3x 8-12
-        
-        **4. Antebraço**
-        - [ ] Rosca Inversa - 3x 8-12
-        """)
-
-# --- NA HORA DE SALVAR ---
-if enviado:
-    nome_final = nome_outro if escolha == "Outro..." else escolha
-    if nome_final:
-        # 1. Prepara o novo dado
-        data_combinada = datetime.combine(data_input, hora_input)
-        novo_registro = {
-            "Data_Hora": data_combinada.strftime('%Y-%m-%d %H:%M:%S'),
-            "Exercicio": nome_final,
-            "Peso_kg": float(peso),
-            "Repeticoes": int(reps),
-            "Series": int(series),
-            "Volume_Total": float(peso * reps * series)
-        }
-        
-        # 2. Busca os dados atuais para não sobrescrever errado
-        df_atual = conn.read(worksheet="Página1", ttl="0s")
-        
-        # 3. Adiciona o novo registro
-        df_final = pd.concat([df_atual, pd.DataFrame([novo_registro])], ignore_index=True)
-        
-        # 4. Atualiza a planilha
-        conn.update(worksheet="Página1", data=df_final)
-        st.write("Conectado à planilha:", conn.read(worksheet="Página1").shape[0], "linhas encontradas.")
-        
-        st.success("💪 Treino salvo com sucesso no Google Sheets!")
-        st.balloons() # Um efeito visual para confirmar
-        time.sleep(1)
-        st.rerun()
+    st.header("📚 Suas Fichas")
+    with st.expander("TREINO A - Empurrar"):
+        st.markdown("- [ ] Supino Vertical\n- [ ] Supino Reto\n- [ ] Desenvolvimento\n- [ ] Elevação Lateral")
+    with st.expander("TREINO B - Pernas"):
+        st.markdown("- [ ] Agachamento\n- [ ] Stiff\n- [ ] Extensora\n- [ ] Panturrilha")
+    with st.expander("TREINO C - Puxar"):
+        st.markdown("- [ ] Puxada Alta\n- [ ] Remada Baixa\n- [ ] Rosca Direta\n- [ ] Rosca Martelo")
