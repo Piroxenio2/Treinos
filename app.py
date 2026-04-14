@@ -137,19 +137,31 @@ with aba_historico:
 # ABA 3: GRÁFICOS
 # ===================================================
 with aba_graficos:
-    df = carregar_dados()
-    if not df.empty and len(df) > 1:
-        df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='mixed', errors='coerce')
-        df = df.dropna(subset=['Data_Hora'])
+    st.header("Análise de Performance")
+    df_g = carregar_dados()
+    if not df_g.empty:
+        df_g['Data_Hora'] = pd.to_datetime(df_g['Data_Hora'], format='mixed')
+        lista_ex = sorted(df_g['Exercicio'].unique())
+        ex_selecionado = st.selectbox("Escolha o exercício para analisar:", lista_ex)
         
-        lista_ex = sorted(df['Exercicio'].unique())
-        lista_ex = sorted(df['Exercicio'].unique())
-        opcao = st.selectbox("Qual exercício quer analisar?", lista_ex)
-        df_filt = df[df['Exercicio'] == opcao].sort_values(by="Data_Hora")
-        st.line_chart(df_filt, x="Data_Hora", y="Peso_kg")
-        st.metric("Recorde Pessoal (PR)", f"{df_filt['Peso_kg'].max()} kg")
-    else:
-        st.warning("Dados insuficientes para gerar gráficos.")
+        df_filt = df_g[df_g['Exercicio'] == ex_selecionado].sort_values(by="Data_Hora")
+        
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.subheader("📈 Evolução de Carga (kg)")
+            st.line_chart(df_filt, x="Data_Hora", y="Peso_kg")
+            st.metric("Carga Máxima", f"{df_filt['Peso_kg'].max()} kg")
+            
+        with col_g2:
+            st.subheader("📊 Evolução de Volume Total")
+            # Volume Total = Peso * Reps * Séries
+            st.line_chart(df_filt, x="Data_Hora", y="Volume_Total")
+            st.metric("Maior Volume", f"{df_filt['Volume_Total'].max():.0f} kg")
+
+        st.divider()
+        st.subheader("Histórico de Progresso")
+        st.dataframe(df_filt[['Data_Hora', 'Peso_kg', 'Repeticoes', 'Series', 'Volume_Total']].sort_values(by="Data_Hora", ascending=False), use_container_width=True, hide_index=True)
 
 # ===================================================
 # ABA 4: FICHAS (CONTEÚDO ESTÁTICO)
