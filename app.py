@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -10,6 +10,9 @@ st.set_page_config(page_title="Treino Tracker Pro", page_icon="💪", layout="wi
 # --- CONEXÃO COM GOOGLE SHEETS ---
 # Certifique-se de que no Streamlit Cloud você configurou os "Secrets"
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Criando o fuso horário do Brasil (Brasília: UTC -3)
+FUSO_BR = timezone(timedelta(hours=-3))
 
 # NOME DA ABA (Mude aqui se na sua planilha estiver diferente de 'Página1')
 NOME_ABA = "Página1"
