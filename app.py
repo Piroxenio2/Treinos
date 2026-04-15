@@ -155,12 +155,6 @@ with aba_graficos:
             st.subheader("📈 Evolução de Carga (kg)")
             st.line_chart(df_filt, x="Data_Hora", y="Peso_kg")
             st.metric("Carga Máxima", f"{df_filt['Peso_kg'].max()} kg")
-            
-        with col_g2:
-            st.subheader("📊 Evolução de Volume Total")
-            # Volume Total = Peso * Reps * Séries
-            st.line_chart(df_filt, x="Data_Hora", y="Volume_Total")
-            st.metric("Maior Volume", f"{df_filt['Volume_Total'].max():.0f} kg")
 
         st.divider()
         st.subheader("Histórico de Progresso")
